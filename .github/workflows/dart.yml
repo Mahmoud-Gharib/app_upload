@@ -35,7 +35,7 @@ jobs:
       - name: Read APK name from name.txt
         id: read_apk_name
         run: |
-          APK_NAME=$(cat name.txt)
+          APK_NAME=$(cat assets/app/name.txt)
           echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
 
       - name: Rename APK and move to apk_release/
