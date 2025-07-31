@@ -25,7 +25,7 @@ class ImagePage extends StatelessWidget {
         backgroundColor: Colors.blue,
       ),
       body: Center(
-        child: Image.asset('assets/images/my_image.jpg'),
+        child: Image.asset('assets/images/1.jpg'),
       ),
     );
   }
