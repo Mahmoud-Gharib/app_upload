@@ -1,59 +1,73 @@
-name: Build APK and IPA
+name: Build Android & iOS
+
 on:
   push:
     branches:
       - main
+
 permissions:
   contents: write
 
 jobs:
   build:
-    runs-on: macos-latest   # لازم macOS علشان iOS build
+    runs-on: macos-latest # لازم Mac علشان iOS
 
     steps:
+      # 1- Checkout الكود
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # 2- اختيار أحدث Xcode
+      - name: Select latest Xcode
+        run: sudo xcode-select -s "/Applications/Xcode_15.4.app"
+
+      # 3- Setup Java
       - name: Setup Java 17
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
 
+      # 4- Setup Flutter
       - name: Install Flutter 3.32.0
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.32.0'
 
+      # 5- Get dependencies
       - name: Install dependencies
         run: flutter pub get
 
-      # Android build
+      # 6- Build Android APK
       - name: Build APK
         run: flutter build apk --release
 
-      # iOS build (IPA)
+      # 7- Build iOS IPA بدون توقيع
       - name: Build iOS IPA
         run: flutter build ipa --release --no-codesign
 
+      # 8- Read app name
       - name: Read App Name
-        id: read_apk_name
+        id: read_app_name
         run: |
           APP_NAME=$(cat assets/app/name.txt)
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
 
+      # 9- جمع الملفات في مجلد واحد
       - name: Prepare release files
         run: |
           mkdir -p release_files
-          cp build/app/outputs/flutter-apk/app-release.apk release_files/${{ steps.read_apk_name.outputs.app_name }}.apk
-          cp build/ios/ipa/*.ipa release_files/${{ steps.read_apk_name.outputs.app_name }}.ipa
+          cp build/app/outputs/flutter-apk/app-release.apk release_files/${{ steps.read_app_name.outputs.app_name }}.apk
+          cp build/ios/ipa/*.ipa release_files/${{ steps.read_app_name.outputs.app_name }}.ipa
 
+      # 10- رفع الملفات كـ Artifact
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-builds
           path: release_files/
 
+      # 11- رفع الملفات على GitHub Release
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
