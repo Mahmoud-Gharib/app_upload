@@ -1,32 +1,19 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'LoginPage.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async 
+{
+  WidgetsFlutterBinding.ensureInitialized();
+  await loadGiftData();
+  runApp
+  (
+	MaterialApp
+	(
+		debugShowCheckedModeBanner: false,
+		home: LoginPage(),
+	)
+  );
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: ImagePage(),
-      debugShowCheckedModeBanner: false,
-    );
-  }
-}
-
-class ImagePage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('صورة من ملف'),
-        backgroundColor: Colors.blue,
-      ),
-      body: Center(
-        child: Image.asset('assets/images/1.jpg'),
-      ),
-    );
-  }
-}

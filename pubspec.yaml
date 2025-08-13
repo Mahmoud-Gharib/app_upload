@@ -36,6 +36,9 @@ dependencies:
   path: ^1.8.3
   path_provider: ^2.1.2
   flutter_dotenv: ^5.1.0
+  google_fonts: ^4.0.4
+  audioplayers: ^6.1.0
+
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -58,8 +61,14 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   assets:
-    - assets/images/1.jpg
-
+    - assets/config.json
+    - assets/Duaa.json
+    - assets/message.json
+    - assets/Image.json
+    - assets/SurprizeImage/1.JPG
+    - assets/images/photo1.jpg
+    - assets/images/photo2.jpg
+    - assets/images/photo3.jpg
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
