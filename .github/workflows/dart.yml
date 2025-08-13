@@ -44,59 +44,32 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
-      # 7- إنشاء ExportOptions.plist
-      - name: Create ExportOptions.plist
-        run: |
-          cat > ios/ExportOptions.plist <<EOL
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>ad-hoc</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>compileBitcode</key>
-            <false/>
-          </dict>
-          </plist>
-          EOL
-
-      # 8- بناء iOS Archive بدون توقيع
-      - name: Build iOS Archive
+      # 7- بناء IPA بدون توقيع
+      - name: Build IPA (no codesign)
         run: flutter build ipa --release --no-codesign
 
-      # 9- تصدير الـ IPA من الـ Archive
-      - name: Export IPA
-        run: |
-          mkdir -p build/ios/ipa
-          xcodebuild -exportArchive \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -exportPath build/ios/ipa \
-            -exportOptionsPlist ios/ExportOptions.plist
-
-      # 10- قراءة اسم التطبيق من name.txt
+      # 8- قراءة اسم التطبيق من name.txt
       - name: Read App Name
         id: read_app_name
         run: |
           APP_NAME=$(cat assets/app/name.txt)
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
 
-      # 11- تجهيز الملفات للإصدار
+      # 9- تجهيز الملفات للإصدار
       - name: Prepare release files
         run: |
           mkdir -p release_files
           cp build/app/outputs/flutter-apk/app-release.apk release_files/${{ steps.read_app_name.outputs.app_name }}.apk
           cp build/ios/ipa/*.ipa release_files/${{ steps.read_app_name.outputs.app_name }}.ipa
 
-      # 12- رفع الملفات كـ Artifact
+      # 10- رفع الملفات كـ Artifact
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-builds
           path: release_files/
 
-      # 13- رفع الملفات على GitHub Release
+      # 11- رفع الملفات على GitHub Release
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
