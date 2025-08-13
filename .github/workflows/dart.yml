@@ -23,7 +23,7 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      # 3- تهيئة Java
+      # 3- تهيئة Java 17
       - name: Setup Java 17
         uses: actions/setup-java@v3
         with:
@@ -44,7 +44,7 @@ jobs:
       - name: Build APK
         run: flutter build apk --release
 
-      # 7- إنشاء ExportOptions.plist (لإخراج IPA بدون توقيع)
+      # 7- إنشاء ExportOptions.plist
       - name: Create ExportOptions.plist
         run: |
           cat > ios/ExportOptions.plist <<EOL
@@ -62,32 +62,41 @@ jobs:
           </plist>
           EOL
 
-      # 8- بناء iOS IPA بدون توقيع + تصدير
-      - name: Build iOS IPA
-        run: flutter build ipa --release --no-codesign --export-options-plist=ios/ExportOptions.plist
+      # 8- بناء iOS Archive بدون توقيع
+      - name: Build iOS Archive
+        run: flutter build ipa --release --no-codesign
 
-      # 9- قراءة اسم التطبيق من name.txt
+      # 9- تصدير الـ IPA من الـ Archive
+      - name: Export IPA
+        run: |
+          mkdir -p build/ios/ipa
+          xcodebuild -exportArchive \
+            -archivePath build/ios/archive/Runner.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist ios/ExportOptions.plist
+
+      # 10- قراءة اسم التطبيق من name.txt
       - name: Read App Name
         id: read_app_name
         run: |
           APP_NAME=$(cat assets/app/name.txt)
           echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
 
-      # 10- تجهيز الملفات للإصدار
+      # 11- تجهيز الملفات للإصدار
       - name: Prepare release files
         run: |
           mkdir -p release_files
           cp build/app/outputs/flutter-apk/app-release.apk release_files/${{ steps.read_app_name.outputs.app_name }}.apk
           cp build/ios/ipa/*.ipa release_files/${{ steps.read_app_name.outputs.app_name }}.ipa
 
-      # 11- رفع الملفات كـ Artifact
+      # 12- رفع الملفات كـ Artifact
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-builds
           path: release_files/
 
-      # 12- رفع الملفات على GitHub Release
+      # 13- رفع الملفات على GitHub Release
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
