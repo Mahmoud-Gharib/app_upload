@@ -1,13 +1,14 @@
-name: Build and Email APK
+name: Build APK and IPA
 on:
-  push: 
+  push:
     branches:
       - main
 permissions:
   contents: write
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest   # لازم macOS علشان iOS build
 
     steps:
       - name: Checkout code
@@ -27,33 +28,37 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-     
-
+      # Android build
       - name: Build APK
         run: flutter build apk --release
 
-      - name: Read APK name from name.txt
+      # iOS build (IPA)
+      - name: Build iOS IPA
+        run: flutter build ipa --release --no-codesign
+
+      - name: Read App Name
         id: read_apk_name
         run: |
-          APK_NAME=$(cat assets/app/name.txt)
-          echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
+          APP_NAME=$(cat assets/app/name.txt)
+          echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
 
-      - name: Rename APK and move to apk_release/
+      - name: Prepare release files
         run: |
-          mkdir -p apk_release
-          cp build/app/outputs/flutter-apk/app-release.apk apk_release/${{ steps.read_apk_name.outputs.apk_name }}.apk
+          mkdir -p release_files
+          cp build/app/outputs/flutter-apk/app-release.apk release_files/${{ steps.read_apk_name.outputs.app_name }}.apk
+          cp build/ios/ipa/*.ipa release_files/${{ steps.read_apk_name.outputs.app_name }}.ipa
 
-      - name: Upload APK as artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
-          path: apk_release/${{ steps.read_apk_name.outputs.apk_name }}.apk
+          name: release-builds
+          path: release_files/
 
-      - name: Upload APK to GitHub Release
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          name: "APK Release"
+          name: "Mobile App Release"
           tag_name: "v1.0.${{ github.run_number }}"
-          files: apk_release/${{ steps.read_apk_name.outputs.apk_name }}.apk
+          files: release_files/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
