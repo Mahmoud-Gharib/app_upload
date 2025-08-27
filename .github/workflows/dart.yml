@@ -65,7 +65,7 @@ jobs:
         run: flutter pub get
 
       - name: Build iOS for simulator
-        run: flutter build ios --release --simulator
+        run: flutter build ios --debug --simulator
 
       - name: Create iOS build directory
         run: mkdir -p ios_build
