@@ -88,8 +88,8 @@ jobs:
 
       - name: Copy iOS IPA
         run: |
-          if [ -f "build/ios/ipa/*.ipa" ]; then
-            cp build/ios/ipa/*.ipa ios_build/
+          if [ -f "build/ios/ipa/Runner.ipa" ]; then
+            cp build/ios/ipa/Runner.ipa ios_build/
           else
             echo "No IPA file found"
             exit 1
