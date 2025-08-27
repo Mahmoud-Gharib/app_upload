@@ -67,10 +67,18 @@ jobs:
       - name: Check available iOS SDKs
         run: xcodebuild -showsdks | grep iOS
 
-      - name: Build iOS IPA
+      - name: Build iOS without signing and create IPA
         run: |
-          # Build IPA file (unsigned)
-          flutter build ipa --debug --export-method development
+          # Build iOS without code signing
+          flutter build ios --debug --no-codesign
+          
+          # Create IPA manually from .app bundle
+          mkdir -p build/ios/ipa
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r ../ipa/Runner.ipa Payload/
+          rm -rf Payload
 
       - name: List build output
         run: find build/ios -name "*.ipa" -o -name "*.app" -type f
