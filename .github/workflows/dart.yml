@@ -1,4 +1,4 @@
-name: Build and Email APK
+name: Build Flutter App (Android & iOS)
 on:
   push: 
     branches:
@@ -6,28 +6,28 @@ on:
 permissions:
   contents: write
 jobs:
-  build:
+  build-android:
     runs-on: ubuntu-latest
+    name: Build Android APK
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Java 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Flutter 3.32.0
+      - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.0'
+          flutter-version: '3.24.0'
+          channel: 'stable'
 
       - name: Install dependencies
         run: flutter pub get
-
-     
 
       - name: Build APK
         run: flutter build apk --release
@@ -46,14 +46,80 @@ jobs:
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
+          name: android-apk
           path: apk_release/${{ steps.read_apk_name.outputs.apk_name }}.apk
 
-      - name: Upload APK to GitHub Release
+  build-ios:
+    runs-on: macos-latest
+    name: Build iOS App
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS (without signing)
+        run: flutter build ios --release --no-codesign
+
+      - name: Create iOS build directory
+        run: mkdir -p ios_build
+
+      - name: Copy iOS build
+        run: cp -r build/ios/iphoneos/Runner.app ios_build/
+
+      - name: Upload iOS build as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-app
+          path: ios_build/
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [build-android, build-ios]
+    name: Create GitHub Release
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Read APK name from name.txt
+        id: read_apk_name
+        run: |
+          APK_NAME=$(cat assets/app/name.txt)
+          echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
+
+      - name: Download Android APK
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: release/
+
+      - name: Download iOS build
+        uses: actions/download-artifact@v4
+        with:
+          name: ios-app
+          path: release/ios/
+
+      - name: Create iOS archive
+        run: |
+          cd release/ios
+          zip -r ../ios-app.zip Runner.app
+
+      - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          name: "APK Release"
+          name: "Mobile App Release v1.0.${{ github.run_number }}"
           tag_name: "v1.0.${{ github.run_number }}"
-          files: apk_release/${{ steps.read_apk_name.outputs.apk_name }}.apk
+          files: |
+            release/${{ steps.read_apk_name.outputs.apk_name }}.apk
+            release/ios-app.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
