@@ -128,11 +128,6 @@ jobs:
           name: ios-app
           path: release/ios/
 
-      - name: Create iOS archive
-        run: |
-          cd release/ios
-          zip -r ../ios-app.zip Runner.app
-
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -140,6 +135,6 @@ jobs:
           tag_name: "v1.0.${{ github.run_number }}"
           files: |
             release/${{ steps.read_apk_name.outputs.apk_name }}.apk
-            release/ios-app.zip
+            release/ios/Runner.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
