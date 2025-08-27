@@ -64,19 +64,25 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: List available simulators
-        run: xcrun simctl list devices available
+      - name: Build iOS without code signing
+        run: flutter build ios --debug --no-codesign
 
-      - name: Build iOS for simulator with specific iOS version
-        run: |
-          export IPHONEOS_DEPLOYMENT_TARGET=13.0
-          flutter build ios --debug --simulator
+      - name: List build output
+        run: find build/ios -name "*.app" -type d
 
       - name: Create iOS build directory
         run: mkdir -p ios_build
 
       - name: Copy iOS build
-        run: cp -r build/ios/iphonesimulator/Runner.app ios_build/
+        run: |
+          if [ -d "build/ios/iphoneos/Runner.app" ]; then
+            cp -r build/ios/iphoneos/Runner.app ios_build/
+          elif [ -d "build/ios/iphonesimulator/Runner.app" ]; then
+            cp -r build/ios/iphonesimulator/Runner.app ios_build/
+          else
+            echo "No iOS build found"
+            exit 1
+          fi
 
       - name: Upload iOS build as artifact
         uses: actions/upload-artifact@v4
