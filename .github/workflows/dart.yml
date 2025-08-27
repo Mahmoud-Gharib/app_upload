@@ -67,25 +67,23 @@ jobs:
       - name: Check available iOS SDKs
         run: xcodebuild -showsdks | grep iOS
 
-      - name: Build iOS with available SDK
+      - name: Build iOS IPA
         run: |
-          # Use the available iOS SDK version
-          flutter build ios --debug --no-codesign --dart-define=FLUTTER_WEB_USE_SKIA=true
+          # Build IPA file (unsigned)
+          flutter build ipa --debug --export-method development
 
       - name: List build output
-        run: find build/ios -name "*.app" -type d
+        run: find build/ios -name "*.ipa" -o -name "*.app" -type f
 
       - name: Create iOS build directory
         run: mkdir -p ios_build
 
-      - name: Copy iOS build
+      - name: Copy iOS IPA
         run: |
-          if [ -d "build/ios/iphoneos/Runner.app" ]; then
-            cp -r build/ios/iphoneos/Runner.app ios_build/
-          elif [ -d "build/ios/iphonesimulator/Runner.app" ]; then
-            cp -r build/ios/iphonesimulator/Runner.app ios_build/
+          if [ -f "build/ios/ipa/*.ipa" ]; then
+            cp build/ios/ipa/*.ipa ios_build/
           else
-            echo "No iOS build found"
+            echo "No IPA file found"
             exit 1
           fi
 
