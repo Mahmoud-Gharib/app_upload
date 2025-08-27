@@ -49,7 +49,7 @@ jobs:
           path: apk_release/${{ steps.read_apk_name.outputs.apk_name }}.apk
 
   build-ios:
-    runs-on: macos-latest
+    runs-on: macos-13
     name: Build iOS App
 
     steps:
@@ -64,8 +64,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build iOS without code signing
-        run: flutter build ios --debug --no-codesign
+      - name: Check available iOS SDKs
+        run: xcodebuild -showsdks | grep iOS
+
+      - name: Build iOS with available SDK
+        run: |
+          # Use the available iOS SDK version
+          flutter build ios --debug --no-codesign --dart-define=FLUTTER_WEB_USE_SKIA=true
 
       - name: List build output
         run: find build/ios -name "*.app" -type d
