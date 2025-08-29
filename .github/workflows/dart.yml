@@ -134,17 +134,18 @@ jobs:
           echo "exe_name=$APP_NAME" >> $env:GITHUB_OUTPUT
         shell: pwsh
 
-      - name: Copy Windows executable
+      - name: Copy Windows executable and dependencies
         run: |
           New-Item -ItemType Directory -Force -Path windows_build
-          Copy-Item build/windows/x64/runner/Release/my_app.exe windows_build/${{ steps.read_exe_name.outputs.exe_name }}.exe
+          Copy-Item -Recurse build/windows/x64/runner/Release/* windows_build/
+          Rename-Item windows_build/my_app.exe windows_build/${{ steps.read_exe_name.outputs.exe_name }}.exe
         shell: pwsh
 
-      - name: Upload Windows executable as artifact
+      - name: Upload Windows build as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-exe
-          path: windows_build/${{ steps.read_exe_name.outputs.exe_name }}.exe
+          name: windows-app
+          path: windows_build/
 
   create-release:
     runs-on: ubuntu-latest
