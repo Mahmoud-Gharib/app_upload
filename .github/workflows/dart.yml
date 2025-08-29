@@ -124,18 +124,21 @@ jobs:
         run: flutter build windows --release
 
       - name: Create Windows build directory
-        run: mkdir -p windows_build
+        run: New-Item -ItemType Directory -Force -Path windows_build
+        shell: pwsh
 
       - name: Read app name for Windows exe
         id: read_exe_name
         run: |
-          APP_NAME=$(cat assets/app/name.txt)
-          echo "exe_name=$APP_NAME" >> $GITHUB_OUTPUT
+          $APP_NAME = Get-Content assets/app/name.txt
+          echo "exe_name=$APP_NAME" >> $env:GITHUB_OUTPUT
+        shell: pwsh
 
       - name: Copy Windows executable
         run: |
-          mkdir -p windows_build
-          cp build/windows/x64/runner/Release/my_app.exe windows_build/${{ steps.read_exe_name.outputs.exe_name }}.exe
+          New-Item -ItemType Directory -Force -Path windows_build
+          Copy-Item build/windows/x64/runner/Release/my_app.exe windows_build/${{ steps.read_exe_name.outputs.exe_name }}.exe
+        shell: pwsh
 
       - name: Upload Windows executable as artifact
         uses: actions/upload-artifact@v4
