@@ -101,9 +101,51 @@ jobs:
           name: ios-app
           path: ios_build/
 
+  build-windows:
+    runs-on: windows-latest
+    name: Build Windows App
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Build Windows executable
+        run: flutter build windows --release
+
+      - name: Create Windows build directory
+        run: mkdir -p windows_build
+
+      - name: Read app name for Windows exe
+        id: read_exe_name
+        run: |
+          APP_NAME=$(cat assets/app/name.txt)
+          echo "exe_name=$APP_NAME" >> $GITHUB_OUTPUT
+
+      - name: Copy Windows executable
+        run: |
+          mkdir -p windows_build
+          cp build/windows/x64/runner/Release/my_app.exe windows_build/${{ steps.read_exe_name.outputs.exe_name }}.exe
+
+      - name: Upload Windows executable as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: windows_build/${{ steps.read_exe_name.outputs.exe_name }}.exe
+
   create-release:
     runs-on: ubuntu-latest
-    needs: [build-android, build-ios]
+    needs: [build-android, build-ios, build-windows]
     name: Create GitHub Release
 
     steps:
@@ -128,6 +170,12 @@ jobs:
           name: ios-app
           path: release/ios/
 
+      - name: Download Windows executable
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: release/
+
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -136,5 +184,6 @@ jobs:
           files: |
             release/${{ steps.read_apk_name.outputs.apk_name }}.apk
             release/ios/Runner.ipa
+            release/${{ steps.read_apk_name.outputs.apk_name }}.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
