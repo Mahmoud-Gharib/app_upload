@@ -67,26 +67,27 @@ jobs:
       - name: Check available iOS SDKs
         run: xcodebuild -showsdks | grep iOS
 
-      - name: Build iOS IPA with signing
+      - name: Build iOS for simulator
         run: |
-          # Build the app in release mode
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          # Build for iOS simulator (no code signing required)
+          flutter build ipa --release --simulator --no-codesign
           
           # Create output directory
           mkdir -p ios_build
           
-          # Copy the IPA file
-          if [ -f "build/ios/ipa/*.ipa" ]; then
-            cp build/ios/ipa/*.ipa ios_build/
+          # Copy the app bundle
+          if [ -d "build/ios/iphonesimulator/Runner.app" ]; then
+            cd build/ios/iphonesimulator
+            zip -r ../../../ios_build/Runner.app.zip Runner.app
           fi
 
       - name: List build output
         run: find build/ios -name "*.ipa" -o -name "*.app" -type f
 
-      - name: Verify IPA creation
+      - name: Verify App Bundle creation
         run: |
-          if [ ! -f "ios_build/*.ipa" ]; then
-            echo "Error: IPA file was not created"
+          if [ ! -f "ios_build/Runner.app.zip" ]; then
+            echo "Error: App bundle was not created"
             exit 1
           fi
 
