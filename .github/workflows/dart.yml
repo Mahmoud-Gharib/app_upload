@@ -152,16 +152,53 @@ jobs:
       - name: Build iOS for device
         if: env.USE_SIMULATOR == 'false'
         run: |
-          echo "Building for iOS device..."
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+          echo "=== Starting iOS Device Build ==="
           
-          # Create output directory
+          # Clean previous builds and create necessary directories
+          echo "Cleaning previous builds..."
+          rm -rf build/ios
           mkdir -p ios_build
           
-          # Copy the IPA file
-          if [ -f "build/ios/ipa/*.ipa" ]; then
-            cp build/ios/ipa/*.ipa ios_build/
+          # Print environment info
+          echo "\n=== Environment Info ==="
+          flutter doctor -v
+          xcodebuild -version
+          
+          # Build the app
+          echo "\n=== Building IPA file ==="
+          flutter build ipa \
+            --release \
+            --export-options-plist=ios/ExportOptions.plist \
+            --no-tree-shake-icons \
+            --verbose
+          
+          # Check build results
+          echo "\n=== Build Results ==="
+          echo "Contents of build/ios/ipa/:"
+          ls -la build/ios/ipa/ || echo "No ipa directory found"
+          
+          # Find and copy the IPA file
+          echo "\n=== Locating IPA File ==="
+          IPA_FILE=$(find build/ios -name "*.ipa" -type f | head -1)
+          
+          if [ -f "$IPA_FILE" ]; then
+            echo "✓ Found IPA file: $IPA_FILE"
+            cp -v "$IPA_FILE" ios_build/
+            echo "IPA_FILE=ios_build/$(basename "$IPA_FILE")" >> $GITHUB_ENV
+            
+            # Verify the IPA file
+            echo "\n=== Verifying IPA File ==="
+            unzip -l "ios_build/$(basename "$IPA_FILE")" || echo "Failed to list IPA contents"
+          else
+            echo "::error::❌ No IPA file found in build/ios/"
+            echo "Searching in build/ios/:"
+            find build/ios -type f -name "*.ipa" -o -name "*.app" || echo "No build files found"
+            exit 1
           fi
+          
+          echo "\n=== Build Artifacts ==="
+          echo "Contents of ios_build/:"
+          ls -la ios_build/
 
       - name: List build output
         run: find build/ios -name "*.ipa" -o -name "*.app" -type f
@@ -171,23 +208,37 @@ jobs:
           if [ "$USE_SIMULATOR" = "true" ]; then
             if [ ! -f "ios_build/Runner.app.zip" ]; then
               echo "::error::Simulator build failed: Runner.app.zip not found"
+              ls -la ios_build/
               exit 1
             fi
             echo "Simulator build successful"
           else
-            if [ ! -f "ios_build/Runner.ipa" ]; then
-              echo "::error::Device build failed: Runner.ipa not found"
+            # Check for any .ipa file in the directory
+            if [ -z "$(find ios_build -name '*.ipa' -type f -print -quit)" ]; then
+              echo "::error::Device build failed: No .ipa files found in ios_build/"
+              ls -la ios_build/
               exit 1
             fi
             echo "Device build successful"
           fi
 
+      - name: List files before upload
+        run: |
+          echo "Files in ios_build/:"
+          ls -la ios_build/
+          echo "\nFiles in build/ios/ipa/:"
+          ls -la build/ios/ipa/ || echo "No ipa directory found"
+          
       - name: Upload iOS build as artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.USE_SIMULATOR == 'true' && 'ios-simulator-build' || 'ios-device-build' }}
-          path: ios_build/
+          path: |
+            ios_build/*.ipa
+            ios_build/*.zip
+            ios_build/*.app
           if-no-files-found: error
+          retention-days: 1
 
   build-windows:
     runs-on: windows-latest
