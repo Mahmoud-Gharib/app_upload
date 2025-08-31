@@ -70,7 +70,7 @@ jobs:
       - name: Build iOS for simulator
         run: |
           # Build for iOS simulator (no code signing required)
-          flutter build ipa --release --simulator --no-codesign
+          flutter build ios --simulator --no-codesign
           
           # Create output directory
           mkdir -p ios_build
