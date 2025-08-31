@@ -67,28 +67,63 @@ jobs:
       - name: Check available iOS SDKs
         run: xcodebuild -showsdks | grep iOS
 
-      - name: Install Apple certificate and provisioning profile
+      - name: Check for required secrets
+        id: check_secrets
+        run: |
+          if [ -z "${{ secrets.BUILD_CERTIFICATE_BASE64 }}" ] || [ -z "${{ secrets.P12_PASSWORD }}" ] || [ -z "${{ secrets.BUILD_PROVISION_PROFILE }}" ] || [ -z "${{ secrets.DEVELOPMENT_TEAM }}" ]; then
+            echo "::warning::One or more required secrets are missing. Building for simulator instead."
+            echo "USE_SIMULATOR=true" >> $GITHUB_ENV
+          else
+            echo "USE_SIMULATOR=false" >> $GITHUB_ENV
+          fi
+
+      - name: Setup code signing (for real devices)
+        if: env.USE_SIMULATOR == 'false'
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
           BUILD_PROVISION_PROFILE: ${{ secrets.BUILD_PROVISION_PROFILE }}
         run: |
+          set -e
+          
           # Create variables
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
           
-          # Import certificate and provisioning profile from secrets
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-          echo -n "$BUILD_PROVISION_PROFILE" | base64 --decode -o $PP_PATH
+          # Check if certificate exists and is valid
+          if [ -z "$BUILD_CERTIFICATE_BASE64" ]; then
+            echo "::error::BUILD_CERTIFICATE_BASE64 is empty"
+            exit 1
+          fi
           
-          # Create a custom keychain
-          security create-keychain -p "" $KEYCHAIN_PATH
+          # Import certificate and provisioning profile from secrets
+          echo "$BUILD_CERTIFICATE_BASE64" | base64 --decode > $CERTIFICATE_PATH || {
+            echo "::error::Failed to decode certificate"
+            exit 1
+          }
+          
+          echo "$BUILD_PROVISION_PROFILE" | base64 --decode > $PP_PATH || {
+            echo "::error::Failed to decode provisioning profile"
+            exit 1
+          }
+          
+          # Create and unlock keychain
+          security create-keychain -p "" $KEYCHAIN_PATH || true
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "" $KEYCHAIN_PATH
           
           # Import certificate to keychain
-          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security import $CERTIFICATE_PATH \
+            -P "$P12_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k $KEYCHAIN_PATH || {
+              echo "::error::Failed to import certificate to keychain"
+              exit 1
+            }
+            
           security set-key-partition-list -S apple-tool:,apple: -k "" $KEYCHAIN_PATH
           
           # Apply provisioning profile
@@ -99,9 +134,25 @@ jobs:
           echo "CODE_SIGNING_REQUIRED=YES" >> $GITHUB_ENV
           echo "DEVELOPMENT_TEAM=${{ secrets.DEVELOPMENT_TEAM }}" >> $GITHUB_ENV
           
-      - name: Build iOS IPA
+      - name: Build iOS for simulator
+        if: env.USE_SIMULATOR == 'true'
         run: |
-          # Build the app for real devices
+          echo "Building for iOS simulator..."
+          flutter build ios --simulator --no-codesign
+          
+          # Create output directory
+          mkdir -p ios_build
+          
+          # Copy the app bundle
+          if [ -d "build/ios/iphonesimulator/Runner.app" ]; then
+            cd build/ios/iphonesimulator
+            zip -r ../../../ios_build/Runner.app.zip Runner.app
+          fi
+          
+      - name: Build iOS for device
+        if: env.USE_SIMULATOR == 'false'
+        run: |
+          echo "Building for iOS device..."
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
           
           # Create output directory
@@ -115,18 +166,28 @@ jobs:
       - name: List build output
         run: find build/ios -name "*.ipa" -o -name "*.app" -type f
 
-      - name: Verify IPA creation
+      - name: Verify build output
         run: |
-          if [ ! -f "ios_build/Runner.ipa" ]; then
-            echo "Error: IPA file was not created"
-            exit 1
+          if [ "$USE_SIMULATOR" = "true" ]; then
+            if [ ! -f "ios_build/Runner.app.zip" ]; then
+              echo "::error::Simulator build failed: Runner.app.zip not found"
+              exit 1
+            fi
+            echo "Simulator build successful"
+          else
+            if [ ! -f "ios_build/Runner.ipa" ]; then
+              echo "::error::Device build failed: Runner.ipa not found"
+              exit 1
+            fi
+            echo "Device build successful"
           fi
 
       - name: Upload iOS build as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-app
+          name: ${{ env.USE_SIMULATOR == 'true' && 'ios-simulator-build' || 'ios-device-build' }}
           path: ios_build/
+          if-no-files-found: error
 
   build-windows:
     runs-on: windows-latest
