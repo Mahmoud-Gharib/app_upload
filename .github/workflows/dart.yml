@@ -67,31 +67,26 @@ jobs:
       - name: Check available iOS SDKs
         run: xcodebuild -showsdks | grep iOS
 
-      - name: Build iOS without signing and create IPA
+      - name: Build iOS IPA with signing
         run: |
-          # Build iOS without code signing
-          flutter build ios --debug --no-codesign
+          # Build the app in release mode
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
           
-          # Create IPA manually from .app bundle
-          mkdir -p build/ios/ipa
-          cd build/ios/iphoneos
-          mkdir -p Payload
-          cp -r Runner.app Payload/
-          zip -r ../ipa/Runner.ipa Payload/
-          rm -rf Payload
+          # Create output directory
+          mkdir -p ios_build
+          
+          # Copy the IPA file
+          if [ -f "build/ios/ipa/*.ipa" ]; then
+            cp build/ios/ipa/*.ipa ios_build/
+          fi
 
       - name: List build output
         run: find build/ios -name "*.ipa" -o -name "*.app" -type f
 
-      - name: Create iOS build directory
-        run: mkdir -p ios_build
-
-      - name: Copy iOS IPA
+      - name: Verify IPA creation
         run: |
-          if [ -f "build/ios/ipa/Runner.ipa" ]; then
-            cp build/ios/ipa/Runner.ipa ios_build/
-          else
-            echo "No IPA file found"
+          if [ ! -f "ios_build/*.ipa" ]; then
+            echo "Error: IPA file was not created"
             exit 1
           fi
 
